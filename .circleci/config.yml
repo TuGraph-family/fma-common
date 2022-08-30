@@ -1,0 +1,26 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: fmacloud/cpp:0.0.3
+
+    environment:
+      - CTEST_OUTPUT_ON_FAILURE: "1"
+
+    steps:
+      - checkout
+
+      - run:
+          name: CMake Build
+          command: |
+                mkdir build
+                cd build
+                cmake ..
+                make
+
+      - run:
+          name: Run tests
+          command: |
+                cd test
+                make
+                ./test -t all
