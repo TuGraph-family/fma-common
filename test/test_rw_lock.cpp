@@ -1,89 +1,153 @@
 ﻿/* Copyright (c) 2022 AntGroup. All Rights Reserved. */
 
+#include <functional>
+
+#include "fma-common/configuration.h"
 #include "fma-common/logging.h"
 #include "fma-common/rw_lock.h"
 #include "fma-common/unit_test_utils.h"
+#include "./rand_r.h"
 
 using namespace fma_common;
 
+struct AutoApplyAndRollbackActions {
+ protected:
+    std::function<void()> act_;
+    std::function<void()> rollback_;
+ public:
+    AutoApplyAndRollbackActions(const std::function<void()>& act,
+                                const std::function<void()>& rollback)
+        : act_(act), rollback_(rollback) {
+        if (act_) act_();
+    }
+
+    ~AutoApplyAndRollbackActions() {
+        if (rollback_) rollback_();
+    }
+
+    void CancelRollback() {
+        rollback_ = nullptr;
+    }
+};
+
+template<typename LockT>
+void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_upgrade) {
+    LockT lock;
+    std::vector<std::thread> readers;
+    std::vector<std::thread> writers;
+    std::atomic<size_t> nreaders(0);
+    std::atomic<size_t> nwriters(0);
+
+    for (size_t i = 0; i < nr; i++) {
+        readers.emplace_back([&, i]() {
+            for (size_t j = 0; j < nl; j++) {
+                FMA_DBG() << "reader " << i << " getting read lock";
+                try {
+                    AutoReadLock<LockT> l(lock);
+                    FMA_CHECK_EQ(AtomicLoad(nwriters), 0);
+                    AutoApplyAndRollbackActions a([&]() { AtomicFetchInc(nreaders); },
+                                                    [&]() { AtomicFetchDec(nreaders); });
+                    std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
+                } catch (LockInterruptedException& e) {
+                    FMA_LOG() << "Lock interrupted: " << e.what();
+                }
+                FMA_DBG() << "reader " << i << " release read lock";
+            }
+        });
+    }
+
+    for (size_t i = 0; i < nw; i++) {
+        writers.emplace_back([&, i]() {
+            for (size_t j = 0; j < nl; j++) {
+                try {
+                    if (test_upgrade) {
+                        FMA_DBG() << "writer " << i << " getting read lock";
+                        AutoReadLock<LockT> lr(lock);
+                        FMA_CHECK_EQ(AtomicLoad(nwriters), 0);
+                        AutoApplyAndRollbackActions a([&]() { AtomicFetchInc(nreaders); },
+                                                        [&]() { AtomicFetchDec(nreaders); });
+                        FMA_DBG() << "writer " << i << " has read lock";
+                        std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
+                        AutoWriteLock<LockT> lw(lock);
+                        FMA_DBG() << "writer " << i << " upgrade to write lock";
+                        AutoApplyAndRollbackActions b([&]() { AtomicFetchInc(nwriters); },
+                                                        [&]() { AtomicFetchDec(nwriters); });
+                        FMA_CHECK_EQ(AtomicLoad(nreaders), 1);  // only me
+                        FMA_CHECK_EQ(AtomicLoad(nwriters), 1);
+                        std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
+                    } else {
+                        AutoWriteLock<LockT> lw(lock);
+                        FMA_DBG() << "writer " << i << " getting write lock";
+                        AutoApplyAndRollbackActions b([&]() { AtomicFetchInc(nwriters); },
+                                                      [&]() { AtomicFetchDec(nwriters); });
+                        FMA_CHECK_EQ(AtomicLoad(nwriters), 1);
+                        std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
+                    }
+                    FMA_DBG() << "writer " << i << " release read/write lock";
+                } catch (LockUpgradeConflictException& e) {
+                    FMA_DBG() << "writer " << i
+                              << " failed upgrading read lock due to conflict: " << e.what();
+                } catch (LockInterruptedException& e) {
+                    FMA_LOG() << "Lock interrupted: " << e.what();
+                } catch (...) {
+                    FMA_FATAL() << "writer " << i << " unknown error.";
+                }
+            }
+        });
+    }
+
+    for (auto& t : readers) t.join();
+    for (auto& t : writers) t.join();
+}
+
+class Interrupt {
+    static std::atomic<bool> flag_;
+ public:
+    static void Set(bool flag) { AtomicStore(flag_, flag); }
+
+    bool operator()() const { return AtomicLoad(flag_); }
+
+    operator bool() const { return true; }
+};
+
+std::atomic<bool> Interrupt::flag_{false};
+
+FMA_SET_TEST_PARAMS(RWLock, "");
+
 FMA_UNIT_TEST(RWLock) {
-    size_t n = 3;
     size_t nr = 10;
     size_t nw = 10;
+    size_t nl = 100;
     size_t nsleep = 10;
+    bool verbose = false;
 
-    SpinningRWLock spinning_rw_lock;
-    { AutoReadLock<SpinningRWLock> r_lock(spinning_rw_lock); }
-    { AutoWriteLock<SpinningRWLock> w_lock(spinning_rw_lock); }
-    RWLock rw_lock;
-    { AutoReadLock<RWLock> r_lock(rw_lock); }
-    { AutoWriteLock<RWLock> w_lock(rw_lock); }
-    TLSRWLock tls_lock;
-    {
-        AutoReadLock<TLSRWLock> r_lock(tls_lock);
-        r_lock.Unlock();
-        tls_lock.ReadLock();
-        tls_lock.ReadLock();
-        tls_lock.ReadUnlock();
-        tls_lock.ReadUnlock();
-        AutoWriteLock<TLSRWLock> w_lock(tls_lock);
-        w_lock.Unlock();
-    }
-    {
-        FMA_LOG() << "Testing TLSRWLock dead lock";
-        // test read-write dead lock
-        // t1 read, t2 write, t1 read
-        std::thread reader([&]() {
-            AutoReadLock<TLSRWLock> l1(tls_lock);
-            SleepUs(500000);
-            AutoReadLock<TLSRWLock> l2(tls_lock);
-        });
-        std::thread writer([&]() {
-            SleepUs(200000);
-            AutoWriteLock<TLSRWLock> l(tls_lock);
-        });
-        reader.join();
-        writer.join();
-    }
-    {
-        std::atomic<int64_t> readers(0);
-        std::atomic<int64_t> writers(0);
+    fma_common::Configuration config;
+    config.Add(nr, "nr", true).Comment("Number of reader threads");
+    config.Add(nw, "nw", true).Comment("Number of writer threads");
+    config.Add(nl, "nl", true).Comment("Number of locks to do in each thread");
+    config.Add(nsleep, "ns", true).Comment("Number of microseconds to sleep in lock");
+    config.Add(verbose, "verbose", true).Comment("Whether to print verbose logs");
+    config.ParseAndFinalize(argc, argv);
 
-        for (size_t i = 0; i < n; i++) {
-            FMA_LOG() << i << "th run";
-            std::vector<std::thread> rthrs;
-            static unsigned int seed = 0;
-            for (size_t i = 0; i < nr; i++) {
-                rthrs.emplace_back([i, nsleep, &tls_lock, &readers, &writers]() {
-                    for (size_t j = 0; j < nsleep; j++) {
-                        AutoReadLock<TLSRWLock> l(tls_lock);
-                        FMA_LOG() << "Reader " << i << " reading " << j;
-                        readers++;
-                        SleepUs(rand_r(&seed) % 100);
-                        readers--;
-                        FMA_CHECK_EQ(writers, 0);
-                    }
-                });
-            }
-            std::vector<std::thread> wthrs;
-            for (size_t i = 0; i < nw; i++) {
-                wthrs.emplace_back([i, nsleep, &tls_lock, &readers, &writers]() {
-                    for (size_t j = 0; j < nsleep; j++) {
-                        AutoWriteLock<TLSRWLock> l(tls_lock);
-                        FMA_LOG() << "Writer " << i << " writing " << j;
-                        writers++;
-                        SleepUs(rand_r(&seed) % 100);
-                        writers--;
-                        FMA_CHECK_EQ(writers, 0);
-                        FMA_CHECK_EQ(readers, 0);
-                    }
-                });
-            }
-            for (auto &t : rthrs) t.join();
-            for (auto &t : wthrs) t.join();
-            FMA_CHECK_EQ(writers, 0);
-            FMA_CHECK_EQ(readers, 0);
+    if (verbose)
+        fma_common::Logger::Get().SetLevel(fma_common::LogLevel::LL_DEBUG);
+
+    FMA_LOG() << "Testing SpinningRWLock";
+    TestWithThreads<SpinningRWLock>(nr, nw, nl, nsleep, false);
+    FMA_LOG() << "Testing RWLock";
+    TestWithThreads<SpinningRWLock>(nr, nw, nl, nsleep, false);
+
+    FMA_LOG() << "Testing TLSRWLock";
+    TestWithThreads<TLSRWLock>(nr, nw, nl, nsleep, true);
+
+    FMA_LOG() << "Testing InterruptableTLSRWLock";
+    std::thread interrupt([&]() {
+        for (size_t i = 0; i < nl; i++) {
+            Interrupt::Set((i % 2 == 0));
+            std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
         }
-    }
+    });
+    TestWithThreads<InterruptableTLSRWLock<Interrupt>>(nr, nw, nl, nsleep, true);
+    interrupt.join();
     return 0;
 }

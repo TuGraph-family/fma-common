@@ -9,6 +9,7 @@
 #include "fma-common/pipeline.h"
 #include "fma-common/utils.h"
 #include "fma-common/unit_test_utils.h"
+#include "./rand_r.h"
 
 using namespace fma_common;
 
@@ -22,8 +23,7 @@ std::pair<int, double> AddOne(int d) {
 
 std::pair<int, double> Square(const std::pair<int, double> &d) {
     FMA_DBG() << "2i: " << d.first;
-    static unsigned int seed = 0;
-    SleepS((double)((rand_r(&seed) % 10) + 1) / 5 * sleep_time);
+    SleepS(((double)(myrand() % 10) + 1) / 5 * sleep_time);
     return std::make_pair(d.first, d.second * d.second);
 }
 

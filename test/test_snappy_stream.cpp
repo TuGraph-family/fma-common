@@ -8,6 +8,7 @@
 #include "fma-common/snappy_stream.h"
 #include "fma-common/unit_test_utils.h"
 #include "fma-common/utils.h"
+#include "./rand_r.h"
 
 using namespace fma_common;
 
@@ -31,9 +32,8 @@ FMA_UNIT_TEST(SnappyStream) {
     int64_t sum = 0;
     std::vector<char> block(block_size);
     int *p = (int *)(&block[0]);
-    static unsigned int seed = 0;
     for (int i = 0; i < block_size / 4; i++) {
-        int d = rand_r(&seed) % 255;
+        int d = myrand() % 255;
         p[i] = d;
         sum += d;
     }
