@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/unit_test.dir/main.cpp.o"
+  "CMakeFiles/unit_test.dir/test_arg_parse.cpp.o"
+  "CMakeFiles/unit_test.dir/test_binary_read_write_helper.cpp.o"
+  "CMakeFiles/unit_test.dir/test_bounded_queue.cpp.o"
+  "CMakeFiles/unit_test.dir/test_cache_aligned_vector.cpp.o"
+  "CMakeFiles/unit_test.dir/test_configuration.cpp.o"
+  "CMakeFiles/unit_test.dir/test_data_file.cpp.o"
+  "CMakeFiles/unit_test.dir/test_date.cpp.o"
+  "CMakeFiles/unit_test.dir/test_encrypt.cpp.o"
+  "CMakeFiles/unit_test.dir/test_file_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_file_system.cpp.o"
+  "CMakeFiles/unit_test.dir/test_fma_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_hard_container.cpp.o"
+  "CMakeFiles/unit_test.dir/test_hardware_info.cpp.o"
+  "CMakeFiles/unit_test.dir/test_leveled_log_device.cpp.o"
+  "CMakeFiles/unit_test.dir/test_logging.cpp.o"
+  "CMakeFiles/unit_test.dir/test_many_streams.cpp.o"
+  "CMakeFiles/unit_test.dir/test_multi_disk_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_piped_hdfs_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_pipeline.cpp.o"
+  "CMakeFiles/unit_test.dir/test_rotating_file_log_device.cpp.o"
+  "CMakeFiles/unit_test.dir/test_rotating_files.cpp.o"
+  "CMakeFiles/unit_test.dir/test_rw_lock.cpp.o"
+  "CMakeFiles/unit_test.dir/test_snappy_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_stream_buffer.cpp.o"
+  "CMakeFiles/unit_test.dir/test_string_util.cpp.o"
+  "CMakeFiles/unit_test.dir/test_text_dir_stream.cpp.o"
+  "CMakeFiles/unit_test.dir/test_text_parser.cpp.o"
+  "CMakeFiles/unit_test.dir/test_text_parser_utils.cpp.o"
+  "CMakeFiles/unit_test.dir/test_text_writer.cpp.o"
+  "CMakeFiles/unit_test.dir/test_thread_pool.cpp.o"
+  "CMakeFiles/unit_test.dir/test_timed_task.cpp.o"
+  "CMakeFiles/unit_test.dir/test_type_traits.cpp.o"
+  "CMakeFiles/unit_test.dir/test_utils.cpp.o"
+  "../output/unit_test.pdb"
+  "../output/unit_test"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/unit_test.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

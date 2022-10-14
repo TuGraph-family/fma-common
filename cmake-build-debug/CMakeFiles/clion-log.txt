@@ -1,0 +1,23 @@
+/usr/local/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/usr/bin/gmake -DCMAKE_C_COMPILER=/usr/bin/cc -DCMAKE_CXX_COMPILER=/usr/bin/c++ -G "CodeBlocks - Unix Makefiles" -S /tmp/tmp.YSDRACWJqK -B /tmp/tmp.YSDRACWJqK/cmake-build-debug
+-- The C compiler identification is GNU 4.8.5
+-- The CXX compiler identification is GNU 5.4.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+Asan is disabled.
+Snappy is disabled.
+HDFS is disabled.
+HDFS3 is disabled.
+MYSQL is disabled.
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/tmp.YSDRACWJqK/cmake-build-debug

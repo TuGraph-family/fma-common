@@ -12,10 +12,16 @@
 #include "fma-common/utils.h"
 
 namespace fma_common {
-class LockUpgradeConflictException : public std::runtime_error {
+
+enum class LockStatus {
+    SUCCESS = 0,
+    INTERRUPTED = 1,
+    UPGRADE_FAILED = 2
+};
+
+class InvalidThreadIdError : public std::runtime_error {
  public:
-    LockUpgradeConflictException()
-        : std::runtime_error("Lock upgrade failed. Probably another writer is already writing?") {}
+    InvalidThreadIdError() : std::runtime_error("Invalid thread id.") {}
 };
 
 // RWLock using thread-local storage.
@@ -25,76 +31,134 @@ class LockUpgradeConflictException : public std::runtime_error {
 // NOTE: ReadLock/ReadUnlock pairs must be used in the same thread since we keep the
 // lock info in TLS.
 // Allows re-entry.
-class TLSRWLock {
+// The locking process is interrupted if should_interrupt() returns true.
+template <typename ShouldInterruptFuncT>
+class InterruptableTLSRWLock {
     std::atomic<int64_t> n_writers_;
     StaticCacheAlignedVector<std::atomic<int64_t>, FMA_MAX_THREADS> reader_locks_;
+    std::atomic<int> curr_writer_;
+    std::atomic<int64_t> write_reentry_level_;
+    ShouldInterruptFuncT should_interrupt_;
 
-    DISABLE_COPY(TLSRWLock);
-    DISABLE_MOVE(TLSRWLock);
+    DISABLE_COPY(InterruptableTLSRWLock);
+    DISABLE_MOVE(InterruptableTLSRWLock);
+
+    void ThrowOnInvalidTID(int tid) {
+        if (tid < 0 || tid >= FMA_MAX_THREADS) throw InvalidThreadIdError();
+    }
+
+    #define RETURN_IF_INTERRUPTED() \
+        if (should_interrupt_ && should_interrupt_()) return LockStatus::INTERRUPTED;
 
  public:
-    TLSRWLock() : n_writers_(0) {
+    explicit InterruptableTLSRWLock(const ShouldInterruptFuncT& interrupt = ShouldInterruptFuncT())
+        : n_writers_(0), curr_writer_(-1), write_reentry_level_(0), should_interrupt_(interrupt) {
         for (size_t i = 0; i < reader_locks_.size(); i++) AtomicStore(reader_locks_[i], 0);
     }
 
-    void ReadLock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
+    /**
+     * \brief Acquires a read lock. Allows re-entry.
+     * 
+     * \param tid   Thread id of the locking thread.
+     * 
+     * \return LockStatus::SUCCESS if succeed.
+     *         LockStatus::INTERRUPTED if interrupted.
+     */
+    LockStatus ReadLock(int tid) {
+        ThrowOnInvalidTID(tid);
         while (true) {
-            // if re-entry, dont' wait for writers to avoid deadlock
-            if (AtomicFetchInc(reader_locks_[tid]) > 0) return;
+            // if re-entry, we already have the lock
+            if (AtomicFetchInc(reader_locks_[tid]) > 0) break;
             // otherwise, wait for writers if necessary
-            if (AtomicLoad(n_writers_) == 0) break;
+            // we might already have write lock, in this case just return
+            if (AtomicLoad(n_writers_) == 0 || AtomicLoad(curr_writer_) == tid) break;
             // there is writer, release read lock and wait
             AtomicFetchDec(reader_locks_[tid]);
-            while (AtomicLoad(n_writers_)) std::this_thread::yield();
+            while (AtomicLoad(n_writers_)) {
+                RETURN_IF_INTERRUPTED();
+                std::this_thread::yield();
+            }
         }
+        return LockStatus::SUCCESS;
     }
 
-    void ReadLock() { ReadLock(GetMyThreadId()); }
+    LockStatus ReadLock() { return ReadLock(GetMyThreadId()); }
 
+    /**
+     * \brief Releases a read lock.
+     * 
+     * \param tid   Thread id of the releasing thread, must match the thread id used in
+     *              ReadLock().
+     */
     void ReadUnlock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
+        ThrowOnInvalidTID(tid);
         int64_t r = AtomicFetchDec(reader_locks_[tid]);
         FMA_DBG_CHECK_GE(r, 1);
     }
 
     void ReadUnlock() { ReadUnlock(GetMyThreadId()); }
 
-    void WriteLock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
-
+    /**
+     * Obtain a write lock. Allows re-entry. If the thread already holds read lock,
+     * the read lock is upgraded to a write lock.
+     * 
+     * \param tid   Thread id of the locking thread.
+     * 
+     * \return LockStatus::SUCCESS on success.
+     *         LockStatus::INTERRUPTED if interrupted.
+     *         LockStatus::UPGRADE_FAILED if failed to upgrade a read lock into write lock.
+     */
+    LockStatus WriteLock(int tid) {
+        ThrowOnInvalidTID(tid);
         while (AtomicFetchInc(n_writers_) != 0) {
+            // handle re-entry
+            if (AtomicLoad(curr_writer_) == tid) {
+                write_reentry_level_++;
+                return LockStatus::SUCCESS;
+            }
             // there are already some writer, wait until it is done
             AtomicFetchDec(n_writers_);
             // If this thread already holds a read lock, we must release the read lock
-            // so that the writer can continue. But simply releasing the read lock is
-            // not a good idea since this thread is expected to hold the read lock and
-            // then upgrade. So we have to throw an exception so the caller can wind back
-            // everything and retry.
-            if (AtomicLoad(reader_locks_[tid]) != 0)
-                throw LockUpgradeConflictException();
-            while (AtomicLoad(n_writers_)) std::this_thread::yield();
-            // no writer now, try again
-            continue;
+            // so that the writer can continue.
+            if (AtomicLoad(reader_locks_[tid]) != 0) return LockStatus::UPGRADE_FAILED;
+            while (AtomicLoad(n_writers_)) {
+                RETURN_IF_INTERRUPTED();
+                std::this_thread::yield();
+            }
         }
         // I am the first writer, check for readers
         for (size_t i = 0; i < reader_locks_.size(); i++) {
-            if (tid == (int)i) continue;  // upgrade from read to write lock automatically
+            if (tid == (int)i) continue;  // upgrade from read to write lock
             // wait for each reader
-            while (AtomicLoad(reader_locks_[i])) std::this_thread::yield();
+            while (AtomicLoad(reader_locks_[i])) {
+                if (should_interrupt_ && should_interrupt_()) {
+                    // rollback changes and return interrupted
+                    AtomicFetchDec(n_writers_);
+                    return LockStatus::INTERRUPTED;
+                }
+                std::this_thread::yield();
+            }
         }
+        AtomicStore(curr_writer_, tid);
+        write_reentry_level_++;
+        return LockStatus::SUCCESS;
     }
 
     // get an exclusive write lock
     // if the calling thread already has read locks, they are ignored and
     // the write lock will be obtained if other threads does not have locks.
-    void WriteLock() { WriteLock(GetMyThreadId()); }
+    LockStatus WriteLock() { return WriteLock(GetMyThreadId()); }
 
-    void WriteUnlock(int tid = GetMyThreadId()) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
+    void WriteUnlock(int tid) {
+        ThrowOnInvalidTID(tid);
+        // if this thread no longer holds the write lock, set writer id to -1
+        if (AtomicFetchDec(write_reentry_level_) == 1) AtomicStore(curr_writer_, -1);
+        // now release the lock
         int64_t r = AtomicFetchDec(n_writers_);
         FMA_DBG_CHECK_GE(r, 1);
     }
+
+    void WriteUnlock() { WriteUnlock(GetMyThreadId()); }
 };
 
 class LockInterruptedException : public std::runtime_error {
@@ -102,106 +166,14 @@ class LockInterruptedException : public std::runtime_error {
     LockInterruptedException() : std::runtime_error("Lock interrupted.") {}
 };
 
-// a TLSRWLock that takes an extra function to determine if we should interrupt
-// the locking process. The function is used when trying to get a lock. If the
-// function returns true, lock is not obtained and ReadLock() or WriteLock() returns
-// false.
-template <typename ShouldInterruptFuncT>
-class InterruptableTLSRWLock {
-    std::atomic<int64_t> n_writers_;
-    std::atomic<int> curr_writer_;
-    StaticCacheAlignedVector<std::atomic<int64_t>, FMA_MAX_THREADS> reader_locks_;
-    ShouldInterruptFuncT should_interrupt_;
-
-    DISABLE_COPY(InterruptableTLSRWLock);
-    DISABLE_MOVE(InterruptableTLSRWLock);
-
-    void ThrowIfShouldIntertupt() {
-        if (should_interrupt_ && should_interrupt_()) throw LockInterruptedException();
-    }
+class LockUpgradeFailedException : public std::runtime_error {
  public:
-    explicit InterruptableTLSRWLock(const ShouldInterruptFuncT& interrupt = ShouldInterruptFuncT())
-        : n_writers_(0), curr_writer_(-1), should_interrupt_(interrupt) {
-        for (size_t i = 0; i < reader_locks_.size(); i++) AtomicStore(reader_locks_[i], 0);
-    }
-
-    void ReadLock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
-        while (true) {
-            // if re-entry, we already have the lock
-            if (AtomicFetchInc(reader_locks_[tid]) > 0) return;
-            // otherwise, wait for writers if necessary
-            // we might already have write lock, in this case just return
-            if (AtomicLoad(n_writers_) == 0 || AtomicLoad(curr_writer_) == tid) return;
-            // there is writer, release read lock and wait
-            AtomicFetchDec(reader_locks_[tid]);
-            while (AtomicLoad(n_writers_)) {
-                ThrowIfShouldIntertupt();
-                std::this_thread::yield();
-            }
-        }
-    }
-
-    void ReadLock() { ReadLock(GetMyThreadId()); }
-
-    void ReadUnlock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
-        int64_t r = AtomicFetchDec(reader_locks_[tid]);
-        FMA_DBG_CHECK_GE(r, 1);
-    }
-
-    void ReadUnlock() { ReadUnlock(GetMyThreadId()); }
-
-    void WriteLock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
-        while (AtomicFetchInc(n_writers_) != 0) {
-            // if we already have the lock
-            if (_F_UNLIKELY(AtomicLoad(curr_writer_) == tid)) break;
-            // there is already some other writer, wait until it is done
-            AtomicFetchDec(n_writers_);
-            if (_F_UNLIKELY(AtomicLoad(reader_locks_[tid]) > 0)) {
-                // Trying to upgrade lock while another thread has write lock.
-                // This causes deadlock if we wait, so need to abort here.
-                throw LockUpgradeConflictException();
-            }
-            while (AtomicLoad(n_writers_)) {
-                ThrowIfShouldIntertupt();
-                std::this_thread::yield();
-            }
-            // no writer now, try again
-        }
-        AtomicStore(curr_writer_, tid);
-        // I am the first writer, check for readers
-        for (size_t i = 0; i < reader_locks_.size(); i++) {
-            if (tid == (int)i) continue;  // upgrade from read to write lock
-            // wait for each reader
-            while (AtomicLoad(reader_locks_[i])) {
-                if (_F_UNLIKELY(should_interrupt_ && should_interrupt_())) {
-                    // release write lock
-                    AtomicFetchDec(n_writers_);
-                    AtomicStore(curr_writer_, -1);
-                    throw LockInterruptedException();
-                }
-                std::this_thread::yield();
-            }
-        }
-    }
-
-    void WriteLock() { WriteLock(GetMyThreadId()); }
-
-    void WriteUnlock(int tid) {
-        FMA_DBG_CHECK_LT(tid, FMA_MAX_THREADS);
-        AtomicStore(curr_writer_, -1);
-        int64_t r = AtomicFetchDec(n_writers_);
-        if (r != 1) AtomicStore(curr_writer_, tid);
-        FMA_DBG_CHECK_GE(r, 1);
-    }
-
-    void WriteUnlock() { WriteUnlock(GetMyThreadId()); }
+    LockUpgradeFailedException()
+        : std::runtime_error("Failed to upgrade read lock to write lock.") {}
 };
 
 template <typename LockT>
-class InterruptableTLSAutoReadLock {
+class TLSAutoReadLock {
  public:
     typedef LockT LockType;
 
@@ -209,36 +181,32 @@ class InterruptableTLSAutoReadLock {
     LockT& lock_;
     int tid_;
     bool locked_;
-    DISABLE_COPY(InterruptableTLSAutoReadLock);
-    DISABLE_MOVE(InterruptableTLSAutoReadLock);
+    DISABLE_COPY(TLSAutoReadLock);
+    DISABLE_MOVE(TLSAutoReadLock);
 
  public:
-    InterruptableTLSAutoReadLock(LockT& l, int tid) : lock_(l), tid_(tid) {
-        locked_ = lock_.ReadLock(tid_);
-        if (_F_UNLIKELY(!locked_)) throw LockInterruptedException();
-    }
+    TLSAutoReadLock(LockT& l, int tid) : lock_(l), tid_(tid), locked_(false) { Lock(); }
 
-    ~InterruptableTLSAutoReadLock() {
+    explicit TLSAutoReadLock(LockT& l) : TLSAutoReadLock(l, GetMyThreadId()) {}
+
+    ~TLSAutoReadLock() { Unlock(); }
+
+    void Unlock() {
         if (_F_UNLIKELY(!locked_)) return;
         lock_.ReadUnlock(tid_);
-    }
-
-    void Unlock() {
-        if (locked_) {
-            lock_.ReadUnlock(tid_);
-            locked_ = false;
-        }
+        locked_ = false;
     }
 
     void Lock() {
-        if (locked_) return;
-        locked_ = lock_.ReadLock(tid_);
-        if (_F_UNLIKELY(!locked_)) throw LockInterruptedException();
+        if (_F_UNLIKELY(locked_)) return;
+        LockStatus status = lock_.ReadLock(tid_);
+        locked_ = (status == LockStatus::SUCCESS);
+        if (!locked_) throw LockInterruptedException();
     }
 };
 
 template <typename LockT>
-class InterruptableTLSAutoWriteLock {
+class TLSAutoWriteLock {
  public:
     typedef LockT LockType;
 
@@ -246,31 +214,31 @@ class InterruptableTLSAutoWriteLock {
     LockT& lock_;
     int tid_;
     bool locked_;
-    DISABLE_COPY(InterruptableTLSAutoWriteLock);
-    DISABLE_MOVE(InterruptableTLSAutoWriteLock);
+    DISABLE_COPY(TLSAutoWriteLock);
+    DISABLE_MOVE(TLSAutoWriteLock);
 
  public:
-    InterruptableTLSAutoWriteLock(LockT& l, int tid) : lock_(l), tid_(tid) {
-        locked_ = lock_.WriteLock(tid_);
-        if (_F_UNLIKELY(!locked_)) throw LockInterruptedException();
-    }
+    TLSAutoWriteLock(LockT& l, int tid) : lock_(l), tid_(tid), locked_(false) { Lock(); }
 
-    ~InterruptableTLSAutoWriteLock() {
-        if (_F_UNLIKELY(!locked_)) return;
-        lock_.WriteUnlock(tid_);
-    }
+    explicit TLSAutoWriteLock(LockT& l) : TLSAutoWriteLock(l, GetMyThreadId()) {}
+
+    ~TLSAutoWriteLock() { Unlock(); }
 
     void Unlock() {
-        if (locked_) {
-            lock_.WriteUnlock(tid_);
-            locked_ = false;
-        }
+        if (_F_UNLIKELY(!locked_)) return;
+        lock_.WriteUnlock(tid_);
+        locked_ = false;
     }
 
     void Lock() {
-        if (locked_) return;
-        locked_ = lock_.WriteLock(tid_);
-        if (_F_UNLIKELY(!locked_)) throw LockInterruptedException();
+        if (_F_UNLIKELY(locked_)) return;
+        LockStatus status = lock_.WriteLock(tid_);
+        locked_ = (status == LockStatus::SUCCESS);
+        if (status == LockStatus::INTERRUPTED) {
+            throw LockInterruptedException();
+        } else if (status == LockStatus::UPGRADE_FAILED) {
+            throw LockUpgradeFailedException();
+        }
     }
 };
 
@@ -406,29 +374,4 @@ class AutoWriteLock {
     }
 };
 
-class TLSAutoReadLock {
-    TLSRWLock& l_;
-    int tid_;
-
-    DISABLE_COPY(TLSAutoReadLock);
-    DISABLE_MOVE(TLSAutoReadLock);
-
- public:
-    TLSAutoReadLock(TLSRWLock& l, int tid) : l_(l), tid_(tid) { l_.ReadLock(tid_); }
-
-    ~TLSAutoReadLock() { l_.ReadUnlock(tid_); }
-};
-
-class TLSAutoWriteLock {
-    TLSRWLock& l_;
-    int tid_;
-
-    DISABLE_COPY(TLSAutoWriteLock);
-    DISABLE_MOVE(TLSAutoWriteLock);
-
- public:
-    TLSAutoWriteLock(TLSRWLock& l, int tid) : l_(l), tid_(tid) { l_.WriteLock(tid_); }
-
-    ~TLSAutoWriteLock() { l_.WriteUnlock(tid_); }
-};
 }  // namespace fma_common

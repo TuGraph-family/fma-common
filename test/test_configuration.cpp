@@ -134,7 +134,7 @@ FMA_UNIT_TEST(Configuration) {
     try {
         d.Add(path2, "opt1,d", true);
         d.Add(path2, "opt2,d", true);
-    } catch (ConfigurationError err) {
+    } catch (ConfigurationError& err) {
         std::cout << "catched : " << err.what() << std::endl;
     }
     d.ParseAndRemove(&argc, &argv);

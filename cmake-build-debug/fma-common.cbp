@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="fma-common"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\test\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/tmp/tmp.YSDRACWJqK/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/tmp/tmp.YSDRACWJqK/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/tmp/tmp.YSDRACWJqK/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="unit_test">
+				<Option output="/tmp/tmp.YSDRACWJqK/cmake-build-debug/output/unit_test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/tmp/tmp.YSDRACWJqK/cmake-build-debug/output"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/tmp/tmp.YSDRACWJqK/fma-common"/>
+					<Add directory="/tmp/tmp.YSDRACWJqK/."/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0/x86_64-unknown-linux-gnu"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0/backward"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 unit_test"/>
+					<CompileFile command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="unit_test/fast">
+				<Option output="/tmp/tmp.YSDRACWJqK/cmake-build-debug/output/unit_test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/tmp/tmp.YSDRACWJqK/cmake-build-debug/output"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/tmp/tmp.YSDRACWJqK/fma-common"/>
+					<Add directory="/tmp/tmp.YSDRACWJqK/."/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0/x86_64-unknown-linux-gnu"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/../../../../include/c++/5.4.0/backward"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/local/lib/gcc/x86_64-unknown-linux-gnu/5.4.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 unit_test/fast"/>
+					<CompileFile command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j16 -f &quot;/tmp/tmp.YSDRACWJqK/cmake-build-debug/test/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/main.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_arg_parse.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_binary_read_write_helper.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_bounded_queue.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_cache_aligned_vector.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_configuration.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_data_file.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_date.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_encrypt.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_file_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_file_system.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_fma_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_hard_container.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_hardware_info.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_leveled_log_device.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_logging.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_many_streams.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_multi_disk_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_piped_hdfs_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_pipeline.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_rotating_file_log_device.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_rotating_files.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_rw_lock.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_snappy_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_stream_buffer.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_string_util.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_text_dir_stream.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_text_parser.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_text_parser_utils.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_text_writer.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_thread_pool.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_timed_task.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_type_traits.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/test_utils.cpp">
+			<Option target="unit_test"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/tmp/tmp.YSDRACWJqK/test/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\test\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
