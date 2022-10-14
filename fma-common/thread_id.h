@@ -34,7 +34,10 @@ class ThreadIdAssigner {
         return -1;
     }
 
-    static void ReleaseThreadId(int id) { occupied_()[id] = 0; }
+    static void ReleaseThreadId(int id) {
+        std::lock_guard<std::mutex> l(mutex_());
+        occupied_()[id] = 0;
+    }
 };
 
 class ThreadIdFetcher {
@@ -48,7 +51,7 @@ class ThreadIdFetcher {
 
     ~ThreadIdFetcher() { ThreadIdAssigner::ReleaseThreadId(id_); }
 
-    int Get() { return id_; }
+    inline int Get() const { return id_; }
 };
 
 static inline int GetMyThreadId() {

@@ -30,7 +30,7 @@ struct AutoApplyAndRollbackActions {
     }
 };
 
-template<typename LockT>
+template<typename LockT, typename AutoRL, typename AutoWL>
 void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_upgrade) {
     LockT lock;
     std::vector<std::thread> readers;
@@ -43,13 +43,13 @@ void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_u
             for (size_t j = 0; j < nl; j++) {
                 FMA_DBG() << "reader " << i << " getting read lock";
                 try {
-                    AutoReadLock<LockT> l(lock);
+                    AutoRL l(lock);
                     FMA_CHECK_EQ(AtomicLoad(nwriters), 0);
                     AutoApplyAndRollbackActions a([&]() { AtomicFetchInc(nreaders); },
                                                     [&]() { AtomicFetchDec(nreaders); });
                     std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
                 } catch (LockInterruptedException& e) {
-                    FMA_LOG() << "Lock interrupted: " << e.what();
+                    FMA_LOG() << "reader " << i << " lock interrupted: " << e.what();
                 }
                 FMA_DBG() << "reader " << i << " release read lock";
             }
@@ -62,13 +62,13 @@ void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_u
                 try {
                     if (test_upgrade) {
                         FMA_DBG() << "writer " << i << " getting read lock";
-                        AutoReadLock<LockT> lr(lock);
+                        AutoRL lr(lock);
                         FMA_CHECK_EQ(AtomicLoad(nwriters), 0);
                         AutoApplyAndRollbackActions a([&]() { AtomicFetchInc(nreaders); },
                                                         [&]() { AtomicFetchDec(nreaders); });
                         FMA_DBG() << "writer " << i << " has read lock";
                         std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
-                        AutoWriteLock<LockT> lw(lock);
+                        AutoWL lw(lock);
                         FMA_DBG() << "writer " << i << " upgrade to write lock";
                         AutoApplyAndRollbackActions b([&]() { AtomicFetchInc(nwriters); },
                                                         [&]() { AtomicFetchDec(nwriters); });
@@ -76,7 +76,7 @@ void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_u
                         FMA_CHECK_EQ(AtomicLoad(nwriters), 1);
                         std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
                     } else {
-                        AutoWriteLock<LockT> lw(lock);
+                        AutoWL lw(lock);
                         FMA_DBG() << "writer " << i << " getting write lock";
                         AutoApplyAndRollbackActions b([&]() { AtomicFetchInc(nwriters); },
                                                       [&]() { AtomicFetchDec(nwriters); });
@@ -84,11 +84,11 @@ void TestWithThreads(size_t nr, size_t nw, size_t nl, size_t nsleep, bool test_u
                         std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
                     }
                     FMA_DBG() << "writer " << i << " release read/write lock";
-                } catch (LockUpgradeConflictException& e) {
+                } catch (LockUpgradeFailedException& e) {
                     FMA_DBG() << "writer " << i
                               << " failed upgrading read lock due to conflict: " << e.what();
                 } catch (LockInterruptedException& e) {
-                    FMA_LOG() << "Lock interrupted: " << e.what();
+                    FMA_LOG() << "writer " << i << " lock interrupted: " << e.what();
                 } catch (...) {
                     FMA_FATAL() << "writer " << i << " unknown error.";
                 }
@@ -133,12 +133,11 @@ FMA_UNIT_TEST(RWLock) {
         fma_common::Logger::Get().SetLevel(fma_common::LogLevel::LL_DEBUG);
 
     FMA_LOG() << "Testing SpinningRWLock";
-    TestWithThreads<SpinningRWLock>(nr, nw, nl, nsleep, false);
+    TestWithThreads<SpinningRWLock, AutoReadLock<SpinningRWLock>, AutoWriteLock<SpinningRWLock>>(
+        nr, nw, nl, nsleep, false);
     FMA_LOG() << "Testing RWLock";
-    TestWithThreads<SpinningRWLock>(nr, nw, nl, nsleep, false);
-
-    FMA_LOG() << "Testing TLSRWLock";
-    TestWithThreads<TLSRWLock>(nr, nw, nl, nsleep, true);
+    TestWithThreads<SpinningRWLock, AutoReadLock<SpinningRWLock>, AutoWriteLock<SpinningRWLock>>(
+        nr, nw, nl, nsleep, false);
 
     FMA_LOG() << "Testing InterruptableTLSRWLock";
     std::thread interrupt([&]() {
@@ -147,7 +146,9 @@ FMA_UNIT_TEST(RWLock) {
             std::this_thread::sleep_for(std::chrono::microseconds(nsleep));
         }
     });
-    TestWithThreads<InterruptableTLSRWLock<Interrupt>>(nr, nw, nl, nsleep, true);
+    typedef InterruptableTLSRWLock<Interrupt> TLSLock;
+    TestWithThreads<TLSLock, TLSAutoReadLock<TLSLock>, TLSAutoWriteLock<TLSLock>>(
+        nr, nw, nl, nsleep, true);
     interrupt.join();
     return 0;
 }
