@@ -7,7 +7,7 @@
 #include "fma-common/logger.h"
 
 namespace fma_common {
-static const int FMA_MAX_THREADS = 256;
+static const int FMA_MAX_THREADS = 480;
 
 class ThreadIdAssigner {
     static const int N = FMA_MAX_THREADS;
