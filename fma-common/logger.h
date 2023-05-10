@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2022 AntGroup. All Rights Reserved. */
+/* Copyright (c) 2022 AntGroup. All Rights Reserved. */
 
 #pragma once
 #include <algorithm>
@@ -328,6 +328,8 @@ inline static void PrintBacktraceAndExit(int sig);
 
 Logger& Logger::Get(const std::string& name) {
     static LoggerManager manager;
+    static std::mutex m;
+    std::lock_guard<std::mutex> lg(m);
     return manager.Get(name);
 }
 
