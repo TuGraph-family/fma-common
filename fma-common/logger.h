@@ -298,6 +298,7 @@ class NullStream {
 
 class LoggerManager {
     std::map<std::string, Logger*> loggers_;
+    std::mutex mutex_;
 
  public:
     LoggerManager() { loggers_.emplace("", new Logger()); }
@@ -307,6 +308,7 @@ class LoggerManager {
     }
 
     Logger& Get(const std::string& name) {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (name.empty()) return *(loggers_.begin()->second);
         auto it = loggers_.find(name);
         if (it == loggers_.end()) {
