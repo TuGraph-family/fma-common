@@ -29,7 +29,7 @@ class MyFormatter : public fma_common::LogFormatter {
 FMA_UNIT_TEST(Logging) {
     LOG() << "This is log without any header";
 
-    FMA_CHECK_EQ(0, 1);
+    FMA_CHECK_NEQ(0, 1);
 
     using namespace fma_common;
     Logger &root = Logger::Get("");
@@ -64,5 +64,18 @@ FMA_UNIT_TEST(Logging) {
 
     /*DBG_CHECK should trigger error in debug mode, and should compile to no-op in release mode*/
     // FMA_DBG_CHECK(false) << "This should trigger error.";
+
+    // test thread safety of Logger::Get
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([]() {
+            for (int i = 0; i < 1000; ++i) {
+                Logger::Get(std::to_string(i));
+            }
+        });
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
     return 0;
 }

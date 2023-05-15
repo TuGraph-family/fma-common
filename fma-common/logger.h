@@ -298,7 +298,22 @@ class NullStream {
 
 class LoggerManager {
     std::map<std::string, Logger*> loggers_;
+    std::mutex mutex_;
 
+    Logger& GetNoLock(const std::string& name) {
+        if (name.empty()) return *loggers_.begin()->second;
+        auto it = loggers_.find(name);
+        if (it == loggers_.end()) {
+            size_t pos = name.rfind(".");
+            std::string parent_name;
+            if (pos != name.npos) {
+                parent_name = name.substr(0, pos);
+            }
+            auto& parent = GetNoLock(parent_name);
+            it = loggers_.emplace_hint(it, name, new Logger(name, parent));
+        }
+        return *it->second;
+    }
  public:
     LoggerManager() { loggers_.emplace("", new Logger()); }
 
@@ -307,18 +322,8 @@ class LoggerManager {
     }
 
     Logger& Get(const std::string& name) {
-        if (name.empty()) return *(loggers_.begin()->second);
-        auto it = loggers_.find(name);
-        if (it == loggers_.end()) {
-            size_t pos = name.rfind(".");
-            std::string parent_name;
-            if (pos != name.npos) {
-                parent_name = name.substr(0, pos);
-            }
-            auto& parent = Get(parent_name);
-            it = loggers_.emplace_hint(it, name, new Logger(name, parent));
-        }
-        return *it->second;
+        std::lock_guard<std::mutex> lock(mutex_);
+        return GetNoLock(name);
     }
 };
 
