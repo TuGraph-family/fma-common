@@ -234,27 +234,36 @@ class OutputFileStream : public OutputStreamBase {
 class OutputMemoryFileStream : public OutputStreamBase {
     std::string path_;
     std::string buffer_;
+    std::mutex mutex_;
 
  public:
     virtual ~OutputMemoryFileStream() {}
 
     virtual void Open(const std::string& path, size_t buf_size, std::ofstream::openmode) {
+        std::lock_guard<std::mutex> l(mutex_);
         path_ = path;
         buffer_.clear();
     }
 
     virtual void Write(const void* buffer, size_t size) {
+        std::lock_guard<std::mutex> l(mutex_);
         buffer_.append((const char*)buffer, size);
     }
 
     virtual bool Good() const { return true; }
 
-    virtual void Close() { buffer_.clear(); }
+    virtual void Close() {
+        std::lock_guard<std::mutex> l(mutex_);
+        buffer_.clear();
+    }
 
     virtual size_t Size() const { return buffer_.size(); }
 
     virtual const std::string& Path() const { return path_; }
 
-    std::string& GetBuf() { return buffer_; }
+    std::string& GetBuf() {
+        std::lock_guard<std::mutex> l(mutex_);
+        return buffer_;
+    }
 };
 }  // namespace fma_common
