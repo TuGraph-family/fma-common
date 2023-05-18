@@ -260,15 +260,29 @@ class LoggerStream {
     Logger& logger_;
     std::ostringstream oss_;
     LogLevel level_;
+    std::string file_;
+    std::string func_;
+    int line_;
     bool append_newline_;
+    bool has_debug_info_;
 
  public:
     explicit LoggerStream(Logger& logger, LogLevel level = LL_INFO, bool append_newline = true)
-        : logger_(logger), level_(level), append_newline_(append_newline) {}
+        : logger_(logger), level_(level), append_newline_(append_newline), has_debug_info_(false) {}
+    LoggerStream(Logger& logger, std::string file, std::string func, int line,
+    LogLevel level = LL_INFO, bool append_newline = true)
+        : logger_(logger), level_(level), file_(file), func_(func), line_(line),
+        append_newline_(append_newline), has_debug_info_(true) {}
 
     ~LoggerStream() {
         if (append_newline_) oss_ << "\n";
-        logger_.Write(oss_.str(), level_);
+        if (logger_.GetLevel() == LL_DEBUG && has_debug_info_) {
+            std::ostringstream debug_info_;
+            debug_info_ << "[" << file_ << ":" << func_ << ":" << line_ << "] ";
+            logger_.Write(debug_info_.str() + oss_.str(), level_);
+        } else {
+            logger_.Write(oss_.str(), level_);
+        }
     }
 
     template <typename T>
@@ -417,7 +431,8 @@ _FMA_DEF_CHECK_FUNC__(CheckGe, _FMA_CHECK_GE_FUNC);
 }  // namespace _detail
 
 #define FMA_GET_LOG_STREAM(LEVEL) \
-    ::fma_common::LoggerStream(::fma_common::Logger::Get(), ::fma_common::LEVEL)
+    ::fma_common::LoggerStream(::fma_common::Logger::Get(), __FILE__, __FUNCTION__, __LINE__, \
+    ::fma_common::LEVEL)
 
 #define FMA_LOG_STREAM_WITH_LEVEL(logger, LEVEL) \
     logger.GetLevel() < LEVEL ? true : ::fma_common::LoggerStream(logger, LEVEL)

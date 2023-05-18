@@ -86,4 +86,5 @@ add_executable(unit_test
         test_thread_pool.cpp
         test_timed_task.cpp
         test_type_traits.cpp
-        test_utils.cpp)
+        test_utils.cpp
+        test_level_log.cpp)
