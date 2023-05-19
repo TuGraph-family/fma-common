@@ -328,6 +328,7 @@ class LoggerManager {
         }
         return *it->second;
     }
+
  public:
     LoggerManager() { loggers_.emplace("", new Logger()); }
 
