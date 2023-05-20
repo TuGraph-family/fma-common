@@ -8,4 +8,4 @@ WORKDIR /root/tugraph-db/
 
 RUN --mount=type=secret,id=CODECOV_TOKEN \
     export CODECOV_TOKEN=$(cat /run/secrets/CODECOV_TOKEN) && \
-    mkdir build && cd build && cmake .. && make -j2 && ./output/unit_test -t all
+    mkdir build && cd build && cmake .. && make -j2 && cd output && ./unit_test -t all
