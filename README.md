@@ -1,6 +1,6 @@
 ## FMA-common: Common Utility Code For High Performance Big Data Processing
 
-![Build Status](![Build Status](https://github.com/Tugraph-db/Tugraph-db/actions/workflows/ci.yml/badge.svg))
+![Build Status](https://github.com/Tugraph-db/Tugraph-db/actions/workflows/ci.yml/badge.svg)
 
 This repository contains the common utility code used in fma projects.
 
