@@ -6,7 +6,7 @@ git:
 
 agent:
   docker:
-    image: reg.docker.alibaba-inc.com/fma/tugraph-env-centos7.3:1.0.2
+    image: reg.docker.alibaba-inc.com/fma/tugraph-compile-centos7:1.2.1
 
 environments:
 - CTEST_OUTPUT_ON_FAILURE: "1"
@@ -24,7 +24,7 @@ test-and-codecov:
         mem: 16
         disk: 20
       inputs:
-        image: reg.docker.alibaba-inc.com/fma/tugraph-env-centos7.3:1.0.2
+        image: reg.docker.alibaba-inc.com/fma/tugraph-compile-centos7:1.2.1
         command:
         - |
           bash ./cpplint/check_all.sh

@@ -22,11 +22,18 @@ FMA_UNIT_TEST(FileSystem) {
 
     {
 #ifdef _WIN32
-#else
+#else  // _WIN32
+#if __cplusplus >= 201703L
+        FMA_CHECK_EQ(fma_common::file_system::JoinPath("/a", "b", "/c", "d"), "/c/d");
+        FMA_CHECK_EQ(fma_common::file_system::JoinPath("/a", "b", "c"), "/a/b/c");
+        FMA_CHECK_EQ(fma_common::file_system::JoinPath("./xx", "b", "./c", "d", "e"),
+                     "./xx/b/./c/d/e");
+#else  // __cplusplus >= 201703L
         FMA_CHECK_EQ(fma_common::file_system::JoinPath("/a", "b", "/c"), "/a/b/c");
         FMA_CHECK_EQ(fma_common::file_system::JoinPath("./xx", "b", "/c", "d", "e"),
                      "./xx/b/c/d/e");
-#endif
+#endif  // __cplusplus >= 201703L
+#endif  // _WIN32
     }
     {
         auto path = FileSystem::GetExecutablePath();
