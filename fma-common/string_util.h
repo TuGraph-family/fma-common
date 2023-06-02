@@ -219,6 +219,17 @@ class String2Type<int> {
 #endif
     }
 };
+
+template <typename T>
+class String2Type<std::optional<T>> {
+ public:
+    static bool Get(const std::string& str, std::optional<T>& opt) {
+        T t;
+        if (!String2Type<uint64_t>::Get(str, t)) return false;
+        opt = t;
+        return true;
+    }
+};
 }  // namespace _detail
 
 /*!
@@ -340,6 +351,13 @@ template <typename K, typename V>
 struct Type2String<std::pair<K, V>> {
     static std::string Get(const std::pair<K, V>& p) {
         return ToString(p.first) + ":" + ToString(p.second);
+    }
+};
+
+template <typename K>
+struct Type2String<std::optional<K>> {
+    static std::string Get(const std::optional<K>& p) {
+        return p.has_value() ? ToString(p.value()) : "nullopt";
     }
 };
 
