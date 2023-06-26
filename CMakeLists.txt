@@ -20,4 +20,10 @@ link_libraries(${LIB})
 include_directories(fma-common)
 include_directories(.)
 
+add_library(fma-common INTERFACE)
+
+target_include_directories(fma-common
+    INTERFACE ${CMAKE_CURRENT_LIST_DIR}
+)
+
 add_subdirectory(test)

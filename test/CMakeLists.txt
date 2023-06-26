@@ -52,7 +52,7 @@ else (ENABLE_MYSQL)
     message("MYSQL is disabled.")
 endif (ENABLE_MYSQL)
 
-add_executable(unit_test
+add_executable(fma_unit_test
         main.cpp
         test_arg_parse.cpp
         test_binary_read_write_helper.cpp
